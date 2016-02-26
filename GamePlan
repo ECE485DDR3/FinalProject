@@ -1,0 +1,22 @@
+
+1. If we break down the project into functions or files, i came up with the following: 
+  a) Function to open, read and decode the list of read/write/ifetch given by Faust. 
+  b) create the logic/code behind the cycle count, relating the DRAM command cycles and CPU cycles. 
+  c) find the timing requirement for every DRAM command based on the current state. 
+      this will be  critical for code correctness and the testing part later as well
+    Basically coming up with all the correct combinations for all possible commands and their timing. 
+    In writing first and then we can discuss them. once we agree on that, we can code for it. 
+    For example: Timing for a read after a read to the same bank. A write after read to a different bank and row. 
+
+  d) function that issues commands based on buffer state
+  e) function to write to the trace file
+2. After completing the code part, we move onto to testing. 
+  One of us comes up with the test cases, and the other tests them on the code.
+  Cover all corner cases.
+3. After our simulator is validated to our best ability, move on to the next level in the project.  
+
+If you would like to add to my understanding of the project, do so. It's easier to change things as we go instead of doing so later. And please be critical to my understand and give me some constructive criticism if you can.
+
+And this is how i would like to move forward. 
+
+My goal is to do noticeable progress daily and finish on time. 
