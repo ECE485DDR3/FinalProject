@@ -1,0 +1,27 @@
+Just wanted to share this file with you guys.
+
+Adrian, can you take a look at this code. I find it easier to work with then C. 
+Two files.
+1) ParseCpuRequests.rb does three things
+reads external final into array
+parses each instruction into row,bank,col,instruction,cpu time
+simulates the memory controller where 
+buffer can only take 16 instructions at a time and all instructions take 200 cpu cycles for now. 
+it displays current cpu cycle count, buffer size, last entry to the buffer, and DRAM cycle count
+
+So how can you run this tho. 
+well it's pretty simple actually. 
+
+you can set up your environment here. btw, macs already come with Ruby installed i believe.
+http://www.tutorialspoint.com/ruby/ruby_environment.htm
+
+after setting up the environment, to run my file, in your terminal go to the home directory of the where you copy them to and type :
+
+>ruby ParseCpuRequests.rb
+
+done!!
+
+Let me know what you guys think. I would really like it if we can work with something like ruby or python or java. 
+faust said it would be fine as well. 
+
+-Edgar
