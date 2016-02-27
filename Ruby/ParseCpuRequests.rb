@@ -6,15 +6,12 @@ class ParseCpuRequests
   $CpuClock = 0
   $DRAMClock = 0
   $count = 0
-  $flag = 0
   $Buffer = Array.new
   $goFetch = 1
   $traceFile = Array.new
 
   #loads all each line from the external file into an array called $fileRequest
   def getOneRequestFromFile
-
-
     in_line = $file.gets
     if(in_line != nil)
 
@@ -29,7 +26,6 @@ class ParseCpuRequests
                   "cpuTime" => in_line.split(/\W+/)[2].to_i
                   }
     end
-
   end
 
   #displays each key:value pairs from the hash
@@ -39,8 +35,6 @@ class ParseCpuRequests
   end
 
   def simulateDRAMMemController
-
-
     begin
           #cpu clock
       $CpuClock = $CpuClock + 1
@@ -51,20 +45,16 @@ class ParseCpuRequests
       end
 
       if(!$fileRequest.empty?())
-      #only loads the Memory Controller buffer when it's less than 16 and proper CPU time.
-        if(($Buffer.size() < 16) && ($fileRequest.first["cpuTime"] == $CpuClock) )#&& !$file.eof?())
+      #only loads the Memory Controller buffer when it's less or equal to than 16 and proper CPU time.
+        if(($Buffer.size() <= 16) && ($fileRequest.first["cpuTime"] == $CpuClock) )#&& !$file.eof?())
 
           $Buffer << $fileRequest.shift
           $goFetch = 1
-          if($flag == 0)
-            $flag = 1
-          end
-
         end
       end
 
       #the buffers finishes one Memory request at every 200 CPU cycles (4x50 = 200)
-      if((($flag == 1) && !$Buffer.empty?()))
+      if((!$Buffer.empty?()))
         $count = $count + 1
 
         if($count%4 == 0)
@@ -74,7 +64,7 @@ class ParseCpuRequests
         #first command will take 50 DRAM cycles
         if($DRAMClock == 50)
           $Buffer.shift
-          $DRAMClock = 1
+          $DRAMClock = 0
         end
       end
       puts "#{$CpuClock} #{$count} #{$DRAMClock} #{$Buffer.size()} #{$Buffer.last}"
@@ -83,7 +73,7 @@ class ParseCpuRequests
 end
 
 
-#this is like main, calling each function above to carry out all DRAM memroy request
+#this is like main, calling each function above to carry out all DRAM memory request
 simulate = ParseCpuRequests.new
 $file = File.open("CPURequest.txt","r")
 simulate.simulateDRAMMemController
