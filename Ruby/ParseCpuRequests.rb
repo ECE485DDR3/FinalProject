@@ -6,7 +6,7 @@ class ParseCpuRequests
   $CpuClock = 0
   $DRAMClock = 0
   $count = 0
-  $Buffer = Array.new
+  $CPUBuffer = Array.new
   $goFetch = 1
   $traceFile = Array.new
 
@@ -46,15 +46,21 @@ class ParseCpuRequests
 
       if(!$fileRequest.empty?())
       #only loads the Memory Controller buffer when it's less or equal to than 16 and proper CPU time.
-        if(($Buffer.size() <= 16) && ($fileRequest.first["cpuTime"] == $CpuClock) )#&& !$file.eof?())
+        if(($CPUBuffer.size() <= 16) && ($fileRequest.first["cpuTime"] == $CpuClock) )#&& !$file.eof?())
 
-          $Buffer << $fileRequest.shift
+          temp = $fileRequest.shift
+#          $CPUBuffer << $fileRequest.shift
+          if (checkInstruction(temp))
+            $CPUBuffer << temp
+          else
+             puts "Instruction Not Queued"
+          end
           $goFetch = 1
         end
       end
 
       #the buffers finishes one Memory request at every 200 CPU cycles (4x50 = 200)
-      if((!$Buffer.empty?()))
+      if((!$CPUBuffer.empty?()))
         $count = $count + 1
 
         if($count%4 == 0)
@@ -63,12 +69,55 @@ class ParseCpuRequests
 
         #first command will take 50 DRAM cycles
         if($DRAMClock == 50)
-          $Buffer.shift
+          #getCommandSequence
+          $CPUBuffer.shift
           $DRAMClock = 0
         end
       end
-      puts "#{$CpuClock} #{$count} #{$DRAMClock} #{$Buffer.size()} #{$Buffer.last}"
-    end while (!$Buffer.empty?() or !$file.eof?())
+      #puts "%4d %4d %3d %2d %s" % [$CpuClock, $count, $DRAMClock, $CPUBuffer.size(), $CPUBuffer.last]
+    end while (!$CPUBuffer.empty?() or !$file.eof?())
+  end
+
+  def getCommandSequence
+
+    if ($CPUBuffer[0]["inst"] == "READ")
+      $CPUBuffer[0].store("command1", "ACT")
+      $CPUBuffer[0].store("command2", "RDAP")
+      puts $CPUBuffer[0]
+    elsif ($CPUBuffer[0]["inst"] == "WRITE")
+      $CPUBuffer[0].store("command1", "ACT")
+      $CPUBuffer[0].store("command2", "WRAP")
+      puts $CPUBuffer[0]
+    else
+      $CPUBuffer[0].store("command1", "ACT")
+      $CPUBuffer[0].store("command2", "RDAP")
+      puts $CPUBuffer[0]
+    end
+
+  end
+
+  def checkInstruction(inInstruction)
+    #print "#{inInstruction} \n"
+    if((inInstruction["row"] < 0) or (inInstruction["row"] > 2**15))
+      puts "Row is not within the DRAM limit of 0-%d. #{inInstruction["row"]}" % [2**15]
+      return false
+    elsif ((inInstruction["bank"] < 0) or (inInstruction["bank"] > 2**3))
+      puts "Bank is not wihtin the DRAM limit of 0-%d" % [2**3]
+      return false
+    elsif ((inInstruction["col"] < 0) or (inInstruction["col"] > 2**11))
+      puts "Column is not within the DRAM limit of 0- %d" % [2**11]
+      return false
+    elsif ((inInstruction["inst"].downcase != "read") &
+            (inInstruction["inst"].downcase != "write") &
+            (inInstruction["inst"].downcase != "ifetch"))
+      puts "#{inInstruction["inst"]} is NOT a valid Instruction"
+      return false
+    elsif (inInstruction["cpuTime"] < $CpuClock)
+      puts "Instruction time is incorrect"
+      return false
+    else
+      return true
+    end
   end
 end
 
