@@ -19,9 +19,8 @@ after setting up the environment, to run my file, in your terminal go to the hom
 
 >ruby ParseCpuRequests.rb
 
-done!!
+to get ruby to output to a text file since there is so much data
 
-Let me know what you guys think. I would really like it if we can work with something like ruby or python or java. 
-faust said it would be fine as well. 
+>ruby ParseCpuRequests.rb > output.txt
 
--Edgar
+
