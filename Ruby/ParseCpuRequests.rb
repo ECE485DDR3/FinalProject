@@ -29,27 +29,27 @@ class ParseCpuRequests
       check_address = in_line.sub(/0x/, '').split(/\W+/)[0]
       if(check_address.size == 8)
 
-      address = check_address.to_i(16).to_s(2).reverse
+        address = check_address.to_i(16).to_s(2).reverse
 
-      #parse instruction into a hash: row,bank,col,instruction,cpuTime
-      $fileRequest << {
-                  "row" => address.split(//)[17..31].join('').reverse.to_i(2),
-                  "bank" => address.split(//)[14..16].join('').reverse.to_i(2),
-                  "col" => address.split(//)[3..13].join('').reverse.to_i(2),
-                  "chunk" => address.split(//)[0..2].join('').reverse.to_i(2),
-                  "inst" => in_line.split(/\W+/)[1],
-                  "cpuTime" => in_line.split(/\W+/)[2].to_i
-                  }
-    else
-      puts "0x#{check_address} is an incorrect address size."
-      getOneRequestFromFile
-    end
+        #parse instruction into a hash: row,bank,col,instruction,cpuTime
+        $fileRequest << {
+                    "row" => address.split(//)[17..31].join('').reverse.to_i(2),
+                    "bank" => address.split(//)[14..16].join('').reverse.to_i(2),
+                    "col" => address.split(//)[3..13].join('').reverse.to_i(2),
+                    "chunk" => address.split(//)[0..2].join('').reverse.to_i(2),
+                    "inst" => in_line.split(/\W+/)[1],
+                    "cpuTime" => in_line.split(/\W+/)[2].to_i
+                    }
+      else
+        puts "0x#{check_address} is an incorrect address size."
+        getOneRequestFromFile
+      end
     end
   end
 
   #displays each key:value pairs from the hash
   def getRequest(index)
-    puts $fileRequest[index].inspect
+    #puts $fileRequest[index].inspect
 
   end
 
@@ -71,9 +71,9 @@ class ParseCpuRequests
           if (checkInstruction(temp))
             $CPUBuffer << temp
             $CPUBuffer.last['DRAMCommands'] = getCommandSequence($CPUBuffer.last['inst'])
-            puts $CPUBuffer.last
+            #puts $CPUBuffer.last
           else
-             puts "Instruction Not Queued"
+             #puts "Instruction Not Queued"
              exit
           end
           $goFetch = 1
@@ -95,8 +95,10 @@ class ParseCpuRequests
         if not $CPUBuffer.empty?
           #first command will take 50 DRAM cycles
           if tryDRAMCommand($CPUBuffer[0]['DRAMCommands'].first, $CPUBuffer[0]['bank'], $CPUBuffer[0]['row'], $CPUBuffer[0]['col']) == true
+
             #output dram command
-            puts "DRAM Command issued: %s   Bank: %d   Row: %d   Column: %d" % [$CPUBuffer[0]['DRAMCommands'].first, $CPUBuffer[0]['bank'], $CPUBuffer[0]['row'], $CPUBuffer[0]['col']]
+            #puts "DRAM Command issued: %s   Bank: %d   Row: %d   Column: %d" % [$CPUBuffer[0]['DRAMCommands'].first, $CPUBuffer[0]['bank'], $CPUBuffer[0]['row'], $CPUBuffer[0]['col']]
+            output2file($CPUBuffer[0]['DRAMCommands'].first, $CPUBuffer[0]['bank'], $CPUBuffer[0]['row'], $CPUBuffer[0]['col'])
 
             #update prevCommands array
             $prevCommands[$CPUBuffer[0]['bank']][$CPUBuffer[0]['DRAMCommands'].first] = 0
@@ -112,7 +114,7 @@ class ParseCpuRequests
         end
       end
 
-      puts "%4d %3d %2d %s" % [$CpuClock, $DRAMClock, $CPUBuffer.size(), $CPUBuffer.last]
+      #puts "%4d %3d %2d %s" % [$CpuClock, $DRAMClock, $CPUBuffer.size(), $CPUBuffer.last]
     end while (!$CPUBuffer.empty?() or !$file.eof?())
   end
 
@@ -141,10 +143,10 @@ class ParseCpuRequests
     if ((inInstruction["inst"].downcase != "read") &
             (inInstruction["inst"].downcase != "write") &
             (inInstruction["inst"].downcase != "ifetch"))
-      puts "#{inInstruction["inst"]} is NOT a valid Instruction"
+      #puts "#{inInstruction["inst"]} is NOT a valid Instruction"
       return false
     elsif (inInstruction["cpuTime"] < $CpuClock)
-      puts "Instruction time is incorrect"
+      #puts "Instruction time is incorrect"
       return false
     else
       return true
@@ -188,8 +190,26 @@ class ParseCpuRequests
       end
 
     else
-      puts "command: %s not yet supported" % dramCommand
+      #puts "command: %s not yet supported" % dramCommand
 
+    end
+  end
+
+  def output2file(dramCommand, bank, row, column)
+    if dramCommand == 'ACT'
+      $outfile.syswrite "%d %s %d %d\n" % [$CpuClock, dramCommand, bank, row]
+    elsif dramCommand == 'PRE'
+      $outfile.syswrite "%d %s %d\n" % [$CpuClock, dramCommand, bank]
+    elsif dramCommand == 'RD'
+      $outfile.syswrite "%d %s %d %d\n" % [$CpuClock, dramCommand, bank, column]
+    elsif dramCommand == 'RDAP'
+      $outfile.syswrite "%d %s %d %d\n" % [$CpuClock, dramCommand, bank, column]
+    elsif dramCommand == 'WR'
+      $outfile.syswrite "%d %s %d %d\n" % [$CpuClock, dramCommand, bank, column]
+    elsif dramCommand == 'WRAP'
+      $outfile.syswrite "%d %s %d %d\n" % [$CpuClock, dramCommand, bank, column]
+    elsif dramCommand == 'REF'
+      $outfile.syswrite "%s" % [$CpuClock]
     end
   end
 end
@@ -197,5 +217,9 @@ end
 
 #this is like main, calling each function above to carry out all DRAM memory request
 simulate = ParseCpuRequests.new
-$file = File.open("CPURequest.txt","r")
+inputFilename = "CPURequest.txt"
+outputFilename = inputFilename.split('.')[0] + 'Log.txt'
+$file = File.open(inputFilename,"r")
+$outfile = File.new(outputFilename, "w")
 simulate.simulateDRAMMemController
+$outfile.close
