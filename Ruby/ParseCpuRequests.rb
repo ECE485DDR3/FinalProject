@@ -25,7 +25,11 @@ class ParseCpuRequests
   def getOneRequestFromFile
     in_line = $file.gets
     if(in_line != nil)
-      address = in_line.sub(/0x/, '').split(/\W+/)[0].to_i(16).to_s(2).reverse
+
+      check_address = in_line.sub(/0x/, '').split(/\W+/)[0]
+      if(check_address.size == 8)
+
+      address = check_address.to_i(16).to_s(2).reverse
 
       #parse instruction into a hash: row,bank,col,instruction,cpuTime
       $fileRequest << {
@@ -36,6 +40,10 @@ class ParseCpuRequests
                   "inst" => in_line.split(/\W+/)[1],
                   "cpuTime" => in_line.split(/\W+/)[2].to_i
                   }
+    else
+      puts "0x#{check_address} is an incorrect address size."
+      getOneRequestFromFile
+    end
     end
   end
 
