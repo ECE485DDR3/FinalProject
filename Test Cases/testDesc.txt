@@ -1,0 +1,17 @@
+testcase1
+- input file address too small
+
+testcase2
+- input file address too big
+
+testcase3
+- input file no address given
+
+testcase4
+- input file address is not hex numbers
+
+testcase5
+- input file cpu clock is not a base 10 number
+
+testcase6
+- chunk and columns are 0, bank and row are non zero
