@@ -1,31 +1,33 @@
-tescase0
+Note errors display on terminal
+
+tescase0 - Pass
 - original input file from proj description
 
-testcase1
+testcase1 - Pass
 - input file address too small
 
-testcase2
+testcase2 - Pass
 - input file address too big
 
-testcase3
+testcase3 - Pass
 - input file no address given
 
-testcase4
+testcase4 - Pass
 - input file address is not hex numbers
 
-testcase5
+testcase5 - Pass
 - input file cpu clock is not a base 10 number
 
-testcase6
+testcase6 - UNKNOWN
 - chunk and columns are 0, bank and row are non zero
 
-testcase7
+testcase7 - UNKNOWN
 - 
 
-testcase8
+testcase8 - Pass
 - cpu clock goes backwards in time
 
-testcase9
+testcase9 - Pass
  - Bad instruction name
  
  
