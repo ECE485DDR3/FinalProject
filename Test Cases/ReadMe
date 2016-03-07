@@ -24,3 +24,9 @@ testcase7
 
 testcase8
 - cpu clock goes backwards in time
+
+testcase9
+ - Bad instruction name
+ 
+ 
+ 
