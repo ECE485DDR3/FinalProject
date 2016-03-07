@@ -1,3 +1,5 @@
+tescase0
+- original input file from proj description
 testcase1
 - input file address too small
 
@@ -15,3 +17,9 @@ testcase5
 
 testcase6
 - chunk and columns are 0, bank and row are non zero
+
+testcase7
+- 
+
+testcase8
+- cpu clock goes backwards in time
