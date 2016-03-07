@@ -25,39 +25,41 @@ class ParseCpuRequests
   def getOneRequestFromFile
     in_line = $file.gets
     if(in_line != nil)
-
       check_address = in_line.sub(/0x/, '').split(/\W+/)[0]
+	  check_inst = in_line.split(/\W+/)[1] #Not being used
+	  check_cpuTime = in_line.split(/\W+/)[2]
+	  
       if(check_address.size == 8)
-
         address = check_address.to_i(16).to_s(2).reverse
+		
+		if !(check_cpuTime.to_i.to_s == check_cpuTime)
+		  $outfile.syswrite "#{check_cpuTime} is an invalid value for CPU Time\n"
+		  getOneRequestFromFile
 
-        #parse instruction into a hash: row,bank,col,instruction,cpuTime
-        $fileRequest << {
-                    "row" => address.split(//)[17..31].join('').reverse.to_i(2),
-                    "bank" => address.split(//)[14..16].join('').reverse.to_i(2),
-                    "col" => address.split(//)[3..13].join('').reverse.to_i(2),
-                    "chunk" => address.split(//)[0..2].join('').reverse.to_i(2),
-                    "inst" => in_line.split(/\W+/)[1],
-                    "cpuTime" => in_line.split(/\W+/)[2].to_i
-                    }
-      else
+		else
+		  #parse instruction into a hash: row,bank,col,instruction,cpuTime
+		  $fileRequest << {
+		                   "row" => address.split(//)[17..31].join('').reverse.to_i(2),
+		                   "bank" => address.split(//)[14..16].join('').reverse.to_i(2),
+		                   "col" => address.split(//)[3..13].join('').reverse.to_i(2),
+		                   "chunk" => address.split(//)[0..2].join('').reverse.to_i(2),
+		                   "inst" => in_line.split(/\W+/)[1],
+	                       "cpuTime" => in_line.split(/\W+/)[2].to_i
+		                  }
+		end
+      
+	  else
         puts "0x#{check_address} is an incorrect address size."
         getOneRequestFromFile
       end
     end
   end
 
-  #displays each key:value pairs from the hash
-  def getRequest(index)
-    #puts $fileRequest[index].inspect
-
-  end
-
   def simulateDRAMMemController
     begin
-      #cpu clock
       $CpuClock = $CpuClock + 1
 
+      #get a request from the input file
       if($goFetch == 1 && !$file.eof?())
         getOneRequestFromFile
         $goFetch = 0
@@ -73,8 +75,7 @@ class ParseCpuRequests
             $CPUBuffer.last['DRAMCommands'] = getCommandSequence($CPUBuffer.last['inst'])
             #puts $CPUBuffer.last
           else
-             #puts "Instruction Not Queued"
-             exit
+             puts "Instruction Not Queued"
           end
           $goFetch = 1
         end
@@ -114,8 +115,16 @@ class ParseCpuRequests
         end
       end
 
-      #puts "%4d %3d %2d %s" % [$CpuClock, $DRAMClock, $CPUBuffer.size(), $CPUBuffer.last]
-    end while (!$CPUBuffer.empty?() or !$file.eof?())
+      puts "CpuClock = %d" % $CpuClock
+      puts "DRAMClock = %d" % $DRAMClock
+      puts "CPUBuffer size = %d" % $CPUBuffer.size()
+      puts "Queue = "
+      for item in $CPUBuffer.each
+        puts "       %s" % item
+      end
+      puts "fileRequest = #{$fileRequest}"
+      puts ""
+    end while (!$CPUBuffer.empty?() or !$fileRequest.empty?)
   end
 
   def getCommandSequence(requestType)
@@ -141,12 +150,12 @@ class ParseCpuRequests
   def checkInstruction(inInstruction)
     #print "#{inInstruction} \n"
     if ((inInstruction["inst"].downcase != "read") &
-            (inInstruction["inst"].downcase != "write") &
-            (inInstruction["inst"].downcase != "ifetch"))
-      #puts "#{inInstruction["inst"]} is NOT a valid Instruction"
+        (inInstruction["inst"].downcase != "write") &
+        (inInstruction["inst"].downcase != "ifetch"))
+      puts "#{inInstruction["inst"]} is NOT a valid Instruction"
       return false
     elsif (inInstruction["cpuTime"] < $CpuClock)
-      #puts "Instruction time is incorrect"
+      puts "Instruction time is incorrect"
       return false
     else
       return true
@@ -216,8 +225,13 @@ end
 
 
 #this is like main, calling each function above to carry out all DRAM memory request
+if ARGV.size != 1
+  puts "usage: #{$0} <inputFile.txt>"
+  exit
+end
+
 simulate = ParseCpuRequests.new
-inputFilename = "CPURequest.txt"
+inputFilename = ARGV[0]
 outputFilename = inputFilename.split('.')[0] + 'Log.txt'
 $file = File.open(inputFilename,"r")
 $outfile = File.new(outputFilename, "w")
