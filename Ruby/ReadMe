@@ -9,18 +9,14 @@ simulates the memory controller where
 buffer can only take 16 instructions at a time and all instructions take 200 cpu cycles for now. 
 it displays current cpu cycle count, buffer size, last entry to the buffer, and DRAM cycle count
 
-So how can you run this tho. 
-well it's pretty simple actually. 
-
 you can set up your environment here. btw, macs already come with Ruby installed i believe.
 http://www.tutorialspoint.com/ruby/ruby_environment.htm
 
-after setting up the environment, to run my file, in your terminal go to the home directory of the where you copy them to and type :
-
+after setting up the environment in your terminal go to the home dir of the where you copy them type:
 >ruby ParseCpuRequests.rb
 
 to get ruby to output to a text file since there is so much data
-
 >ruby ParseCpuRequests.rb > output.txt
 
-
+current syntax is 
+>ruby ParseCpuRequests.rb testcase0.txt
