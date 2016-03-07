@@ -25,33 +25,48 @@ class ParseCpuRequests
   def getOneRequestFromFile
     in_line = $file.gets
     if(in_line != nil)
+	  whole_address = in_line.split(/\W+/)[0]
       check_address = in_line.sub(/0x/, '').split(/\W+/)[0]
-	  check_inst = in_line.split(/\W+/)[1] #Not being used
+	  check_inst = in_line.split(/\W+/)[1]
 	  check_cpuTime = in_line.split(/\W+/)[2]
 	  
-      if(check_address.size == 8)
-        address = check_address.to_i(16).to_s(2).reverse
-		
-		if !(check_cpuTime.to_i.to_s == check_cpuTime)
-		  $outfile.syswrite "#{check_cpuTime} is an invalid value for CPU Time\n"
+		if !(check_address.size == 8)
+		  #$outfile.syswrite "#{whole_address} #{check_inst} #{check_cpuTime} invalid address size skipping\n" #outputFile display
+		  puts "#{whole_address} #{check_inst} #{check_cpuTime} invalid address size skipping\n"  	   #Terminal display
 		  getOneRequestFromFile
-
+		  
+		elsif check_address[/\H/]
+		  #$outfile.syswrite "#{whole_address} #{check_inst} #{check_cpuTime} address not hex skipping\n"  #outputFile display
+		  puts "#{whole_address} #{check_inst} #{check_cpuTime} address not hex skipping\n"  	   #Terminal display
+		  getOneRequestFromFile
+		  
+		elsif ((check_inst.downcase != "read") & (check_inst.downcase != "write") & (check_inst.downcase != "ifetch"))
+		  #$outfile.syswrite "#{whole_address} #{check_inst} #{check_cpuTime} invalid Instruction name skipping\n" #outputFile display
+		  puts "#{whole_address} #{check_inst} #{check_cpuTime} invalid Instruction name skipping\n" 		  #Terminal display
+		  getOneRequestFromFile		
+		  
+		elsif !(check_cpuTime.to_i.to_s == check_cpuTime)
+		  #$outfile.syswrite "#{whole_address} #{check_inst} #{check_cpuTime} invalid value for CPU Time skipping\n" #outputFile display
+		  puts "#{whole_address} #{check_inst} #{check_cpuTime} invalid value for CPU Time skipping\n"  	  #Terminal display
+		  getOneRequestFromFile
+		  
+		elsif (check_cpuTime.to_i < $CpuClock)
+			#$outfile.syswrite "#{whole_address} #{check_inst} #{check_cpuTime} violates CPU time skipping\n"  #outputFile display
+			puts "#{whole_address} #{check_inst} #{check_cpuTime} violates CPU time skipping\n"  			 #Terminal display
+			getOneRequestFromFile
+			
 		else
+		   address = check_address.to_i(16).to_s(2).reverse
 		  #parse instruction into a hash: row,bank,col,instruction,cpuTime
 		  $fileRequest << {
-		                   "row" => address.split(//)[17..31].join('').reverse.to_i(2),
-		                   "bank" => address.split(//)[14..16].join('').reverse.to_i(2),
-		                   "col" => address.split(//)[3..13].join('').reverse.to_i(2),
-		                   "chunk" => address.split(//)[0..2].join('').reverse.to_i(2),
-		                   "inst" => in_line.split(/\W+/)[1],
-	                       "cpuTime" => in_line.split(/\W+/)[2].to_i
-		                  }
+						   "row" => address.split(//)[17..31].join('').reverse.to_i(2),
+						   "bank" => address.split(//)[14..16].join('').reverse.to_i(2),
+						   "col" => address.split(//)[3..13].join('').reverse.to_i(2),
+						   "chunk" => address.split(//)[0..2].join('').reverse.to_i(2),
+						   "inst" => in_line.split(/\W+/)[1],
+						   "cpuTime" => in_line.split(/\W+/)[2].to_i
+						  }
 		end
-      
-	  else
-        puts "0x#{check_address} is an incorrect address size."
-        getOneRequestFromFile
-      end
     end
   end
 
@@ -74,8 +89,7 @@ class ParseCpuRequests
             $CPUBuffer << temp
             $CPUBuffer.last['DRAMCommands'] = getCommandSequence($CPUBuffer.last['inst'])
             #puts $CPUBuffer.last
-          else
-             puts "Instruction Not Queued"
+
           end
           $goFetch = 1
         end
@@ -114,7 +128,8 @@ class ParseCpuRequests
           end
         end
       end
-
+=begin
+	  # Testing the ouput
       puts "CpuClock = %d" % $CpuClock
       puts "DRAMClock = %d" % $DRAMClock
       puts "CPUBuffer size = %d" % $CPUBuffer.size()
@@ -124,6 +139,7 @@ class ParseCpuRequests
       end
       puts "fileRequest = #{$fileRequest}"
       puts ""
+=end
     end while (!$CPUBuffer.empty?() or !$fileRequest.empty?)
   end
 
@@ -148,15 +164,11 @@ class ParseCpuRequests
   end
 
   def checkInstruction(inInstruction)
-    #print "#{inInstruction} \n"
-    if ((inInstruction["inst"].downcase != "read") &
-        (inInstruction["inst"].downcase != "write") &
-        (inInstruction["inst"].downcase != "ifetch"))
-      puts "#{inInstruction["inst"]} is NOT a valid Instruction"
+    if ((inInstruction["inst"].downcase != "read") & (inInstruction["inst"].downcase != "write") & (inInstruction["inst"].downcase != "ifetch"))
+	  puts "checkInstruction function" 		  #Terminal display
+	  #getOneRequestFromFile
       return false
-    elsif (inInstruction["cpuTime"] < $CpuClock)
-      puts "Instruction time is incorrect"
-      return false
+
     else
       return true
     end
