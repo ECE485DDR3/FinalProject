@@ -18,17 +18,20 @@ testcase4 - Pass
 testcase5 - Pass
 - input file cpu clock is not a base 10 number
 
-testcase6 - UNKNOWN
-- chunk and columns are 0, bank and row are non zero
+testcase6 - Pass
+- 3 commands, the last request is added to the queue after the queue has emptied
+- This testcase addresses the bug where the queue has been emptied, and end of file
+  has been reached, but there is stil an item in the fileRequest variable, in this
+  case, the simulation would end prematurely
 
-testcase7 - UNKNOWN
-- 
+testcase7 - Pass
+- second command address contains capital X in hex address
 
 testcase8 - Pass
 - cpu clock goes backwards in time
 
 testcase9 - Pass
- - Bad instruction name
+- Bad instruction name
  
- 
- 
+testcase10 - Pass
+-  address '0x' is in wrong position
