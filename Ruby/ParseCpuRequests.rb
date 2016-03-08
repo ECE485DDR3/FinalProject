@@ -25,44 +25,46 @@ class ParseCpuRequests
   def getOneRequestFromFile
     in_line = $file.gets
     if(in_line != nil)
-	  whole_address = in_line.split(/\W+/)[0]
+      in_line = in_line.downcase
+	    whole_address = in_line.split(/\W+/)[0]
       check_address = in_line.sub(/0x/, '').split(/\W+/)[0]
-	  check_inst = in_line.split(/\W+/)[1]
-	  check_cpuTime = in_line.split(/\W+/)[2]
-	  
+	    check_inst = in_line.split(/\W+/)[1]
+	    check_cpuTime = in_line.split(/\W+/)[2]
+
 		if !(check_address.size == 8)
 		  #$outfile.syswrite "#{whole_address} #{check_inst} #{check_cpuTime} invalid address size skipping\n" #outputFile display
 		  puts "#{whole_address} #{check_inst} #{check_cpuTime} invalid address size skipping\n"  	   #Terminal display
 		  getOneRequestFromFile
-		  
+
 		elsif check_address[/\H/]
 		  #$outfile.syswrite "#{whole_address} #{check_inst} #{check_cpuTime} address not hex skipping\n"  #outputFile display
 		  puts "#{whole_address} #{check_inst} #{check_cpuTime} address not hex skipping\n"  	   #Terminal display
 		  getOneRequestFromFile
-		  
+
 		elsif ((check_inst.downcase != "read") & (check_inst.downcase != "write") & (check_inst.downcase != "ifetch"))
 		  #$outfile.syswrite "#{whole_address} #{check_inst} #{check_cpuTime} invalid Instruction name skipping\n" #outputFile display
 		  puts "#{whole_address} #{check_inst} #{check_cpuTime} invalid Instruction name skipping\n" 		  #Terminal display
-		  getOneRequestFromFile		
-		  
+		  getOneRequestFromFile
+
 		elsif !(check_cpuTime.to_i.to_s == check_cpuTime)
 		  #$outfile.syswrite "#{whole_address} #{check_inst} #{check_cpuTime} invalid value for CPU Time skipping\n" #outputFile display
 		  puts "#{whole_address} #{check_inst} #{check_cpuTime} invalid value for CPU Time skipping\n"  	  #Terminal display
 		  getOneRequestFromFile
-		  
+
 		elsif (check_cpuTime.to_i < $CpuClock)
 			#$outfile.syswrite "#{whole_address} #{check_inst} #{check_cpuTime} violates CPU time skipping\n"  #outputFile display
 			puts "#{whole_address} #{check_inst} #{check_cpuTime} violates CPU time skipping\n"  			 #Terminal display
 			getOneRequestFromFile
-			
+
 		else
-		   address = check_address.to_i(16).to_s(2).reverse
+		   address = check_address.to_i(16).to_s(2).rjust(32,'0')
+
 		  #parse instruction into a hash: row,bank,col,instruction,cpuTime
 		  $fileRequest << {
-						   "row" => address.split(//)[17..31].join('').reverse.to_i(2),
-						   "bank" => address.split(//)[14..16].join('').reverse.to_i(2),
-						   "col" => address.split(//)[3..13].join('').reverse.to_i(2),
-						   "chunk" => address.split(//)[0..2].join('').reverse.to_i(2),
+						   "row" => address.split(//)[0..14].join('').to_i(2),
+						   "bank" => address.split(//)[15..17].join('').to_i(2),
+						   "col" => address.split(//)[18..28].join('').to_i(2),
+						   "chunk" => address.split(//)[29..31].join('').to_i(2),
 						   "inst" => in_line.split(/\W+/)[1],
 						   "cpuTime" => in_line.split(/\W+/)[2].to_i
 						  }
@@ -218,19 +220,19 @@ class ParseCpuRequests
 
   def output2file(dramCommand, bank, row, column)
     if dramCommand == 'ACT'
-      $outfile.syswrite "%d %s %d %d\n" % [$CpuClock, dramCommand, bank, row]
+      $outfile.syswrite "%5d %5s %2d %5d\n" % [$CpuClock, dramCommand, bank, row]
     elsif dramCommand == 'PRE'
-      $outfile.syswrite "%d %s %d\n" % [$CpuClock, dramCommand, bank]
+      $outfile.syswrite "%5d %5s %2d\n" % [$CpuClock, dramCommand, bank]
     elsif dramCommand == 'RD'
-      $outfile.syswrite "%d %s %d %d\n" % [$CpuClock, dramCommand, bank, column]
+      $outfile.syswrite "%5d %5s %2d %5d\n" % [$CpuClock, dramCommand, bank, column]
     elsif dramCommand == 'RDAP'
-      $outfile.syswrite "%d %s %d %d\n" % [$CpuClock, dramCommand, bank, column]
+      $outfile.syswrite "%5d %5s %2d %5d\n" % [$CpuClock, dramCommand, bank, column]
     elsif dramCommand == 'WR'
-      $outfile.syswrite "%d %s %d %d\n" % [$CpuClock, dramCommand, bank, column]
+      $outfile.syswrite "%5d %5s %2d %5d\n" % [$CpuClock, dramCommand, bank, column]
     elsif dramCommand == 'WRAP'
-      $outfile.syswrite "%d %s %d %d\n" % [$CpuClock, dramCommand, bank, column]
+      $outfile.syswrite "%5d %5s %2d %5d\n" % [$CpuClock, dramCommand, bank, column]
     elsif dramCommand == 'REF'
-      $outfile.syswrite "%s" % [$CpuClock]
+      $outfile.syswrite "%5s" % [$CpuClock]
     end
   end
 end
