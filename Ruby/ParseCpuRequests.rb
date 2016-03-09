@@ -107,11 +107,25 @@ class ParseCpuRequests
       if not $fileRequest.empty?
         #only loads the Memory Controller buffer when it's less or equal to than 16 and proper CPU time.
         if(($CPUBuffer.size() <= 16) && ($fileRequest.first["cpuTime"] == $CpuClock))
-          if !$fileRequest.empty?
-            $CPUBuffer << $fileRequest.shift
-            $CPUBuffer.last["DRAMCommands"] = getCommandSequence($CPUBuffer.last["inst"])
-            $goFetch = 1
+          $CPUBuffer << $fileRequest.shift
+          $CPUBuffer.last["DRAMCommands"] = getCommandSequence($CPUBuffer.last["inst"])
+          $goFetch = 1
+          
+        #if the queue is empty (nothing being done), we can skip ahead to when an item from the input file will be added to the queue
+        elsif $CPUBuffer.size() == 0
+          dramSkip = ($fileRequest.first["cpuTime"] - $CpuClock + (($CpuClock - 1) % 4)) / 4     #determine how many dram cycles have gone by
+          $CpuClock = $fileRequest.first["cpuTime"]     #update CpuClock
+          $DRAMClock += dramSkip     #update DRAMClock
+          for bankCommands in $prevCommands      #update number of dram cycles since previous commands
+            for command in bankCommands.keys
+              bankCommands[command] += dramSkip
+            end
           end
+          
+          #now correct time to add the request to the queue
+          $CPUBuffer << $fileRequest.shift
+          $CPUBuffer.last["DRAMCommands"] = getCommandSequence($CPUBuffer.last["inst"])
+          $goFetch = 1
         end
       end
 

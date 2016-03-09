@@ -34,4 +34,11 @@ testcase9 - Pass
 - Bad instruction name
  
 testcase10 - Pass
--  address '0x' is in wrong position
+- address '0x' is in wrong position
+
+testcase11 - Pass
+- test skipping forward if queue empty
+- should skip ahead to CPU clock 1000 at begining of the program
+- should skip ahead to CPU clock 10000 after finished with first request at 1056 (tRCD * 4 + 1000)
+- should skip ahead to CPU clock 10150 after finished with second request at 10056
+  but not issue the dram command until 10200
