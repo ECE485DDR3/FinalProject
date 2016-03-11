@@ -184,23 +184,23 @@ class ParseCpuRequests
   def getCommandSequence(requestType, bank, row, column)
     commands = Array.new
 
-    if (($CPUBuffer[0]["inst"] == "READ") || ($CPUBuffer[0]["inst"] == "IFETCH"))
+    if ((requestType == "READ") || (requestType == "IFETCH"))
       if $openPage[bank] == row
         commands.push("RD")
 
       elsif $openPage[bank] == nil
-      commands.push("ACT")
-      commands.push("RD")
+        commands.push("ACT")
+        commands.push("RD")
 
       else
         commands.push("PRE")
-      commands.push("ACT")
-      commands.push("RD")
-        end
+        commands.push("ACT")
+        commands.push("RD")
+      end
 
-      elsif ($CPUBuffer[0]["inst"] == "WRITE")
-        if $openPage[bank] == row
-          commands.push("RD")
+    elsif (requestType == "WRITE")
+      if $openPage[bank] == row
+        commands.push("RD")
 
       elsif $openPage[bank] == nil
         commands.push("ACT")
@@ -241,11 +241,11 @@ class ParseCpuRequests
       return false
     
       else
-      for interBankAct in $prevCommands.each
-        if interBankAct["ACT"] < tRRD
-          return false
+        for interBankAct in $prevCommands.each
+          if interBankAct["ACT"] < tRRD
+            return false
+          end
         end
-      end
     
         return true
     end

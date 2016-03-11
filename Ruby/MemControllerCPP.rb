@@ -162,7 +162,7 @@ class ParseCpuRequests
           end
         end
       end
-=begin
+#=begin
     # Testing the ouput
       puts "CpuClock = %d" % $CpuClock
       puts "DRAMClock = %d" % $DRAMClock
@@ -173,22 +173,22 @@ class ParseCpuRequests
       end
       puts "fileRequest = #{$fileRequest}"
       puts ""
-=end
+#=end
     end while (!$CPUBuffer.empty?() or !$fileRequest.empty?)
   end
 
   def getCommandSequence(requestType)
     commands = Array.new
 
-    if ($CPUBuffer[0]["inst"] == "READ")
+    if (requestType == "READ")
       commands.push("ACT")
       commands.push("RDAP")
 
-    elsif ($CPUBuffer[0]["inst"] == "WRITE")
+    elsif (requestType == "WRITE")
       commands.push("ACT")
       commands.push("WRAP")
 
-    else
+    elsif (requestType == "IFETCH")
       commands.push("ACT")
       commands.push("RDAP")
     end
