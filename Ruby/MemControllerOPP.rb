@@ -1,14 +1,13 @@
 #!/usr/bin/ruby
 
 class ParseCpuRequests
-  @request = Hash.new
+
   $fileRequest = Array.new
   $CpuClock = 0
   $DRAMClock = 0
-  $count = 0
   $CPUBuffer = Array.new
   $goFetch = 1
-  $traceFile = Array.new
+  $openPage = Array.new
 
   $prevCommands = Array.new
   for i in 0..7
@@ -87,7 +86,8 @@ class ParseCpuRequests
                          "col" => address.split(//)[18..28].join("").to_i(2),
                          "chunk" => address.split(//)[29..31].join("").to_i(2),
                          "inst" => in_line.split(/\W+/)[1],
-                         "cpuTime" => in_line.split(/\W+/)[2].to_i
+                         "cpuTime" => in_line.split(/\W+/)[2].to_i,
+                         "state" => "new"
                         }
       end
     end
@@ -108,7 +108,6 @@ class ParseCpuRequests
         #only loads the Memory Controller buffer when it's less or equal to than 16 and proper CPU time.
         if(($CPUBuffer.size() <= 16) && ($fileRequest.first["cpuTime"] == $CpuClock))
           $CPUBuffer << $fileRequest.shift
-          $CPUBuffer.last["DRAMCommands"] = getCommandSequence($CPUBuffer.last["inst"])
           $goFetch = 1
           
         #if the queue is empty (nothing being done), we can skip ahead to when an item from the input file will be added to the queue
@@ -124,7 +123,6 @@ class ParseCpuRequests
           
           #now correct time to add the request to the queue
           $CPUBuffer << $fileRequest.shift
-          $CPUBuffer.last["DRAMCommands"] = getCommandSequence($CPUBuffer.last["inst"])
           $goFetch = 1
         end
       end
@@ -142,12 +140,18 @@ class ParseCpuRequests
 
         #only check for dram commands if there are items in the buffer
         if not $CPUBuffer.empty?
-          #first command will take 50 DRAM cycles
+          #calculate the dram commands that need to be performed for the next item in the queue
+          if $CPUBuffer.last["state"] == "new"
+            $CPUBuffer.last["DRAMCommands"] = getCommandSequence($CPUBuffer.last["inst"], $CPUBuffer.last["bank"], $CPUBuffer.last["row"], $CPUBuffer.last["col"])
+            $CPUBuffer.last["state"] = "in progress"
+          end
+
+          #check if we can do the dram command
           if tryDRAMCommand($CPUBuffer[0]["DRAMCommands"].first, $CPUBuffer[0]["bank"], $CPUBuffer[0]["row"], $CPUBuffer[0]["col"]) == true
 
             #output dram command
             #puts "DRAM Command issued: %s   Bank: %d   Row: %d   Column: %d" % [$CPUBuffer[0]["DRAMCommands"].first, $CPUBuffer[0]["bank"], $CPUBuffer[0]["row"], $CPUBuffer[0]["col"]]
-            output2file($CPUBuffer[0]["DRAMCommands"].first, $CPUBuffer[0]["bank"], $CPUBuffer[0]["row"], $CPUBuffer[0]["col"])
+            executeDRAMCommand($CPUBuffer[0]["DRAMCommands"].first, $CPUBuffer[0]["bank"], $CPUBuffer[0]["row"], $CPUBuffer[0]["col"])
 
             #update prevCommands array
             $prevCommands[$CPUBuffer[0]["bank"]][$CPUBuffer[0]["DRAMCommands"].first] = 0
@@ -177,20 +181,36 @@ class ParseCpuRequests
     end while (!$CPUBuffer.empty?() or !$fileRequest.empty?)
   end
 
-  def getCommandSequence(requestType)
+  def getCommandSequence(requestType, bank, row, column)
     commands = Array.new
 
-    if ($CPUBuffer[0]["inst"] == "READ")
-      commands.push("ACT")
-      commands.push("RDAP")
+    if (($CPUBuffer[0]["inst"] == "READ") || ($CPUBuffer[0]["inst"] == "IFETCH"))
+      if $openPage[bank] == row
+        commands.push("RD")
 
-    elsif ($CPUBuffer[0]["inst"] == "WRITE")
+      elsif $openPage[bank] == nil
       commands.push("ACT")
-      commands.push("WRAP")
+      commands.push("RD")
 
-    else
+      else
+        commands.push("PRE")
       commands.push("ACT")
-      commands.push("RDAP")
+      commands.push("RD")
+        end
+
+      elsif ($CPUBuffer[0]["inst"] == "WRITE")
+        if $openPage[bank] == row
+          commands.push("RD")
+
+      elsif $openPage[bank] == nil
+        commands.push("ACT")
+        commands.push("WR")
+
+      else
+        commands.push("PRE")
+        commands.push("ACT")
+        commands.push("WR")
+      end
     end
 
     return commands
@@ -212,56 +232,98 @@ class ParseCpuRequests
     tWTR = 8
 
     if dramCommand == "ACT"
-      if $prevCommands[bank]["ACT"] >= tRC
+      if $prevCommands[bank]["ACT"] < tRC
+        return false
+
+    #possible later elsif for tRFC - Refresh to Activate
+    
+    elsif $prevCommands[bank]["PRE"] < tRP
+      return false
+    
+      else
+      for interBankAct in $prevCommands.each
+        if interBankAct["ACT"] < tRRD
+          return false
+        end
+      end
+    
         return true
+    end
+
+    elsif (dramCommand == "RD") || (dramCommand == "RDAP")
+      if $prevCommands[bank]["ACT"] < tRCD
+        return false
+  
+      elsif $prevCommands[bank]["RD"] < tCCD
+        return false
+    
+      elsif $prevCommands[bank]["WR"] < (tCAS + tCCD + 2 - tCWL)
+        return false
 
       else
-        return false
+        return true
       end
 
-    elsif dramCommand == "RDAP"
-      if $prevCommands[bank]["ACT"] >= tRCD
-        return true
+    elsif (dramCommand == "WR") || (dramCommand == "WRAP")
+      if $prevCommands[bank]["ACT"] < tRCD
+        return false
+
+      elsif $prevCommands[bank]["WR"] < tCCD
+        return false
+    
+      elsif $prevCommands[bank]["RD"] < (tCWL + tBURST + tWTR)
+        return false
 
       else
-        return false
-      end
-
-    elsif dramCommand == "WRAP"
-      if $prevCommands[bank]["ACT"] >= tRCD
         return true
-
-      else
-        return false
       end
 
+    elsif dramCommand == "PRE"
+      if $prevCommands[bank]["ACT"] < tRAS
+        return false
+      
+      elsif $prevCommands[bank]["RD"] < tRTP
+        return false
+      
+      elsif $prevCommands[bank]["WR"] < (tCWL + tBURST + tWR)
+        return false
+    
+      else
+        return true
+      end
+    
     else
-      puts "Timing for DRAM command: %s not yet supported" % dramCommand
+      puts "Timing for DRAM command [%s] executed at CPU clock [%d] not supported" % [dramCommand, $CpuClock]
       return true
     end
   end
 
-  def output2file(dramCommand, bank, row, column)
+  def executeDRAMCommand(dramCommand, bank, row, column)
     if dramCommand == "ACT"
       $outfile.syswrite "%5d %5s %2d %5d\n" % [$CpuClock, dramCommand, bank, row]
+      $openPage[bank] = row
 
     elsif dramCommand == "PRE"
       $outfile.syswrite "%5d %5s %2d\n" % [$CpuClock, dramCommand, bank]
+      $openPage[bank] = nil
 
     elsif dramCommand == "RD"
       $outfile.syswrite "%5d %5s %2d %5d\n" % [$CpuClock, dramCommand, bank, column]
 
     elsif dramCommand == "RDAP"
       $outfile.syswrite "%5d %5s %2d %5d\n" % [$CpuClock, dramCommand, bank, column]
+      $openPage[bank] = nil
 
     elsif dramCommand == "WR"
       $outfile.syswrite "%5d %5s %2d %5d\n" % [$CpuClock, dramCommand, bank, column]
 
     elsif dramCommand == "WRAP"
       $outfile.syswrite "%5d %5s %2d %5d\n" % [$CpuClock, dramCommand, bank, column]
+      $openPage[bank] = nil
 
     elsif dramCommand == "REF"
       $outfile.syswrite "%5s" % [$CpuClock]
+      $openPage[bank] = nil
     end
   end
 end
