@@ -141,9 +141,9 @@ class ParseCpuRequests
         #only check for dram commands if there are items in the buffer
         if not $CPUBuffer.empty?
           #calculate the dram commands that need to be performed for the next item in the queue
-          if $CPUBuffer.last["state"] == "new"
-            $CPUBuffer.last["DRAMCommands"] = getCommandSequence($CPUBuffer.last["inst"], $CPUBuffer.last["bank"], $CPUBuffer.last["row"], $CPUBuffer.last["col"])
-            $CPUBuffer.last["state"] = "in progress"
+          if $CPUBuffer.first["state"] == "new"
+            $CPUBuffer.first["DRAMCommands"] = getCommandSequence($CPUBuffer.last["inst"], $CPUBuffer.last["bank"], $CPUBuffer.last["row"], $CPUBuffer.last["col"])
+            $CPUBuffer.first["state"] = "in progress"
           end
 
           #check if we can do the dram command
@@ -166,7 +166,7 @@ class ParseCpuRequests
           end
         end
       end
-=begin
+#=begin
     # Testing the ouput
       puts "CpuClock = %d" % $CpuClock
       puts "DRAMClock = %d" % $DRAMClock
@@ -177,7 +177,7 @@ class ParseCpuRequests
       end
       puts "fileRequest = #{$fileRequest}"
       puts ""
-=end
+#=end
     end while (!$CPUBuffer.empty?() or !$fileRequest.empty?)
   end
 
