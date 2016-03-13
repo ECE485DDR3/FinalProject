@@ -109,7 +109,7 @@ class ParseCpuRequests
         if(($CPUBuffer.size() <= 16) && ($fileRequest.first["cpuTime"] == $CpuClock))
           $CPUBuffer << $fileRequest.shift
           $goFetch = 1
-          
+
         #if the queue is empty (nothing being done), we can skip ahead to when an item from the input file will be added to the queue
         elsif $CPUBuffer.size() == 0
           dramSkip = ($fileRequest.first["cpuTime"] - $CpuClock + (($CpuClock - 1) % 4)) / 4     #determine how many dram cycles have gone by
@@ -120,7 +120,7 @@ class ParseCpuRequests
               bankCommands[command] += dramSkip
             end
           end
-          
+
           #now correct time to add the request to the queue
           $CPUBuffer << $fileRequest.shift
           $goFetch = 1
@@ -142,7 +142,7 @@ class ParseCpuRequests
         if not $CPUBuffer.empty?
           #calculate the dram commands that need to be performed for the next item in the queue
           if $CPUBuffer.first["state"] == "new"
-            $CPUBuffer.first["DRAMCommands"] = getCommandSequence($CPUBuffer.last["inst"], $CPUBuffer.last["bank"], $CPUBuffer.last["row"], $CPUBuffer.last["col"])
+            $CPUBuffer.first["DRAMCommands"] = getCommandSequence($CPUBuffer.first["inst"], $CPUBuffer.first["bank"], $CPUBuffer.first["row"], $CPUBuffer.first["col"])
             $CPUBuffer.first["state"] = "in progress"
           end
 
@@ -182,6 +182,8 @@ class ParseCpuRequests
   end
 
   def getCommandSequence(requestType, bank, row, column)
+
+    puts "Open #{$openPage.inspect} \n type #{requestType}, bank #{bank}, row #{row}, col #{column}"
     commands = Array.new
 
     if ((requestType == "READ") || (requestType == "IFETCH"))
@@ -192,7 +194,7 @@ class ParseCpuRequests
         commands.push("ACT")
         commands.push("RD")
 
-      else
+      elsif $openPage[bank] != row
         commands.push("PRE")
         commands.push("ACT")
         commands.push("RD")
@@ -206,7 +208,7 @@ class ParseCpuRequests
         commands.push("ACT")
         commands.push("WR")
 
-      else
+      elsif $openPage[bank] != row
         commands.push("PRE")
         commands.push("ACT")
         commands.push("WR")
@@ -236,27 +238,27 @@ class ParseCpuRequests
         return false
 
     #possible later elsif for tRFC - Refresh to Activate
-    
+
     elsif $prevCommands[bank]["PRE"] < tRP
       return false
-    
+
       else
         for interBankAct in $prevCommands.each
           if interBankAct["ACT"] < tRRD
             return false
           end
         end
-    
+
         return true
     end
 
     elsif (dramCommand == "RD") || (dramCommand == "RDAP")
       if $prevCommands[bank]["ACT"] < tRCD
         return false
-  
+
       elsif $prevCommands[bank]["RD"] < tCCD
         return false
-    
+
       elsif $prevCommands[bank]["WR"] < (tCAS + tCCD + 2 - tCWL)
         return false
 
@@ -270,28 +272,31 @@ class ParseCpuRequests
 
       elsif $prevCommands[bank]["WR"] < tCCD
         return false
-    
-      elsif $prevCommands[bank]["RD"] < (tCWL + tBURST + tWTR)
-        return false
+
+#      elsif $prevCommands[bank]["RD"] < (tCWL + tBURST + tWTR)
+#        return false
 
       else
-        return true
+
+        for intCommand in $prevCommands.each
+          if intCommand["RD"] < tCWL + tBURST + tWTR
+        return false
       end
 
     elsif dramCommand == "PRE"
       if $prevCommands[bank]["ACT"] < tRAS
         return false
-      
+
       elsif $prevCommands[bank]["RD"] < tRTP
         return false
-      
+
       elsif $prevCommands[bank]["WR"] < (tCWL + tBURST + tWR)
         return false
-    
+
       else
         return true
       end
-    
+
     else
       puts "Timing for DRAM command [%s] executed at CPU clock [%d] not supported" % [dramCommand, $CpuClock]
       return true
