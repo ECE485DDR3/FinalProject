@@ -178,7 +178,7 @@ class ParseCpuRequests
       puts "fileRequest = #{$fileRequest}"
       puts ""
 #=end
-    end while (!$CPUBuffer.empty?() or !$fileRequest.empty?)
+    end while (!$CPUBuffer.empty?() or !$fileRequest.empty? or !$file.eof?)
   end
 
   def getCommandSequence(requestType, bank, row, column)
@@ -200,7 +200,7 @@ class ParseCpuRequests
 
     elsif (requestType == "WRITE")
       if $openPage[bank] == row
-        commands.push("RD")
+        commands.push("WR")
 
       elsif $openPage[bank] == nil
         commands.push("ACT")
