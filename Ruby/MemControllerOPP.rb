@@ -256,13 +256,23 @@ class ParseCpuRequests
       if $prevCommands[bank]["ACT"] < tRCD
         return false
 
-      elsif $prevCommands[bank]["RD"] < tCCD
-        return false
+#      elsif $prevCommands[bank]["RD"] < tCCD
+#        return false
 
-      elsif $prevCommands[bank]["WR"] < (tCAS + tCCD + 2 - tCWL)
-        return false
+#      elsif $prevCommands[bank]["WR"] < (tCAS + tCCD + 2 - tCWL)
+#        return false
 
       else
+
+        for intCommand in $prevCommands.each
+          if intCommand["WR"] < (tCAS + tCCD + 2 - tCWL)
+            return false
+
+          elsif intCommand["RD"] < tCCD
+            return false
+          end
+        end
+
         return true
       end
 
@@ -270,8 +280,8 @@ class ParseCpuRequests
       if $prevCommands[bank]["ACT"] < tRCD
         return false
 
-      elsif $prevCommands[bank]["WR"] < tCCD
-        return false
+#      elsif $prevCommands[bank]["WR"] < tCCD
+#        return false
 
 #      elsif $prevCommands[bank]["RD"] < (tCWL + tBURST + tWTR)
 #        return false
@@ -280,7 +290,14 @@ class ParseCpuRequests
 
         for intCommand in $prevCommands.each
           if intCommand["RD"] < tCWL + tBURST + tWTR
-        return false
+            return false
+
+          elsif intCommand["WR"] < tCCD
+            return false
+          end
+        end
+
+        return true
       end
 
     elsif dramCommand == "PRE"
