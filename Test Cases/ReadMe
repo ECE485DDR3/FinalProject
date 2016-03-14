@@ -3,38 +3,11 @@ Note errors display on terminal
 tescase0 - Pass
 - original input file from proj description
 
-testcase1 - Pass
-- input file address too small
-
-testcase2 - Pass
-- input file address too big
-
-testcase3 - Pass
-- input file no address given
-
-testcase4 - Pass
-- input file address is not hex numbers
-
-testcase5 - Pass
-- input file cpu clock is not a base 10 number
-
 testcase6 - Pass
 - 3 commands, the last request is added to the queue after the queue has emptied
 - This testcase addresses the bug where the queue has been emptied, and end of file
   has been reached, but there is stil an item in the fileRequest variable, in this
   case, the simulation would end prematurely
-
-testcase7 - Pass
-- second command address contains capital X in hex address
-
-testcase8 - Pass
-- cpu clock goes backwards in time
-
-testcase9 - Pass
-- Bad instruction name
- 
-testcase10 - Pass
-- address '0x' is in wrong position
 
 testcase11 - Pass
 - test skipping forward if queue empty
@@ -42,3 +15,16 @@ testcase11 - Pass
 - should skip ahead to CPU clock 10000 after finished with first request at 1056 (tRCD * 4 + 1000)
 - should skip ahead to CPU clock 10150 after finished with second request at 10056
   but not issue the dram command until 10200
+  
+testcaseIn.txt - Pass
+line 1 correct
+line 2 cpu clock goes backwards in time 
+line 3 address too big
+line 4 address too small
+line 5 address cpu clock non-integer number
+line 6 address '0x' is in wrong position
+line 7 address contains non-hex numbers 
+line 8 Bad instruction name
+line 9 address missing 
+line 10 blank space
+line 11 cpu time very large
