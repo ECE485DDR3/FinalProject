@@ -28,3 +28,28 @@ line 8 Bad instruction name
 line 9 address missing 
 line 10 blank space
 line 11 cpu time very large
+
+testcase1 - Only Read/IFETCH commands
+- 2 diff columns + sequential bytes
+- expect 16 clock seperation (4 clk * 4dram/1clk)
+
+test1 -Random Commands
+- Same Row - Different col+byte+Bank
+
+test2 -Random Commands - Long TIME=4000
+- Same bank+col - Different byte+row
+
+test3 -Random Commands
+- Same bank+row - Different byte+col
+
+test4 -Random Commands
+- Same col+row - Different byte+bank
+
+test5 -Random Commands
+- Same col+row+bank - Different byte
+
+test6 -Random Commands - Long TIME=4000
+- Same bank - Different row+col+byte
+
+test7 -Random Commands
+- Differen col+byte+Row+Bank
