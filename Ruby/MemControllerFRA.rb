@@ -86,8 +86,7 @@ class ParseCpuRequests
                          "col" => address.split(//)[18..28].join("").to_i(2),
                          "chunk" => address.split(//)[29..31].join("").to_i(2),
                          "inst" => in_line.split(/\W+/)[1],
-                         "cpuTime" => in_line.split(/\W+/)[2].to_i,
-                         "state" => "new"
+                         "cpuTime" => in_line.split(/\W+/)[2].to_i
                         }
       end
     end
@@ -101,6 +100,11 @@ class ParseCpuRequests
       if($goFetch == 1 && !$file.eof?())
         getOneRequestFromFile
         $goFetch = 0
+
+        if $debug == true
+          puts "CPU Clock = #{$CpuClock} DRAM Clock = #{$DRAMClock}"
+          puts "Fetching CPU request from file: #{$fileRequest}\n"
+        end
       end
 
       #attempt to add to queue
@@ -111,6 +115,16 @@ class ParseCpuRequests
           $CPUBuffer.last["DRAMCommands"] = getCommandSequence($CPUBuffer.size-1)     #get dram commands for the newly added item to the queue
           $goFetch = 1
           recalculate = true
+
+          if $debug == true
+            puts "CPU Clock = #{$CpuClock} DRAM Clock = #{$DRAMClock}"
+            puts "Adding CPU request to queue and calculating its DRAM commands"
+            puts "Current queue = "
+            for item in $CPUBuffer.each
+              puts "                #{item}"
+            end
+            puts ""
+          end
 
         #if the queue is empty (nothing being done), we can skip ahead to when an item from the input file will be added to the queue
         elsif $CPUBuffer.size() == 0
@@ -128,6 +142,21 @@ class ParseCpuRequests
           $CPUBuffer.last["DRAMCommands"] = getCommandSequence($CPUBuffer.size-1)     #get dram commands for the newly added item to the queue
           $goFetch = 1
           recalculate = true
+
+          if $debug == true
+            puts "Queue is empty, skipping ahead to CPU time: #{$CpuClock}, DRAM time: #{$DRAMClock}"
+            puts "Time since previous commands:"
+            for i in 0..($prevCommands.size-1)
+              puts "                             Bank %2d:   ACT = %5.0f   PRE = %5.0f   RD = %5.0f   RDAP = %5.0f   WR = %5.0f   WRAP = %5.0f   REF = %5.0f"\
+                    % [i, $prevCommands[i]["ACT"], $prevCommands[i]["PRE"], $prevCommands[i]["RD"], $prevCommands[i]["RDAP"], $prevCommands[i]["WR"], $prevCommands[i]["WRAP"], $prevCommands[i]["REF"]]
+            end
+            puts "Adding CPU request to queue and calculating its DRAM commands"
+            puts "Current queue = "
+            for item in $CPUBuffer.each
+              puts "                #{item}"
+            end
+            puts ""
+          end
         end
       end
 
@@ -148,63 +177,85 @@ class ParseCpuRequests
           if recalculate == true
             getCommandList
 
-            #debug print
-#=begin
-            puts "dram command list - open page policy ordering"
-            for item in $dramCommandList
-              puts "command = #{item["command"]} row = #{item["row"]} bank = #{item["bank"]} col = #{item["col"]} expectedDRAMTime = #{item["expectedDRAMTime"]}"
+            if $debug == true
+              puts "CPU Clock = #{$CpuClock} DRAM Clock = #{$DRAMClock}"
+              puts "List of dram commands with expected output times - open page policy ordering:"
+              for item in $dramCommandList
+                puts "          command = #{item["command"]} row = #{item["row"]} bank = #{item["bank"]} col = #{item["col"]} expectedDRAMTime = #{item["expectedDRAMTime"]}"
+              end
+              puts ""
             end
-            puts ""
-#=end
 
             reorderCommandListFRA
             
-            #debug print
-#=begin
-            puts "dram command list - first ready access ordering"
-            for item in $dramCommandList
-              puts "command = #{item["command"]} row = #{item["row"]} bank = #{item["bank"]} col = #{item["col"]} expectedDRAMTime = #{item["expectedDRAMTime"]}"
+            if $debug == true
+              puts "List of dram commands with expected output times - reordered for first ready first access scheduling:"
+              for item in $dramCommandList
+                puts "          command = #{item["command"]} row = #{item["row"]} bank = #{item["bank"]} col = #{item["col"]} expectedDRAMTime = #{item["expectedDRAMTime"]}"
+              end
+              puts ""
             end
-            puts ""
-#=end
 
             recalculate = false
           end
 
           if $dramCommandList.first["expectedDRAMTime"] == $DRAMClock
             #output dram command
-            #puts "DRAM Command issued: %s   Bank: %d   Row: %d   Column: %d" % [$CPUBuffer[0]["DRAMCommands"].first, $CPUBuffer[0]["bank"], $CPUBuffer[0]["row"], $CPUBuffer[0]["col"]]
             executeDRAMCommand($dramCommandList.first["command"], $dramCommandList.first["bank"], $dramCommandList.first["row"], $dramCommandList.first["col"])
+
+            if $debug == true
+              puts "CPU Clock = #{$CpuClock} DRAM Clock = #{$DRAMClock}"
+              puts "DRAM command executed: #{$dramCommandList.first["command"]}   Bank:#{$dramCommandList.first["bank"]}   Row: #{$dramCommandList.first["row"]}   Column: #{$dramCommandList.first["col"]}"
+              puts "Corresponds to CPU request: #{$dramCommandList.first["CPURequest"]}"
+            end
 
             #update prevCommands array
             $prevCommands[$dramCommandList.first["bank"]][$dramCommandList.first["command"]] = 0
 
+            if $debug == true
+              puts "Time previous command array updated:"
+              for i in 0..($prevCommands.size-1)
+                puts "                             Bank %2d:   ACT = %5.0f   PRE = %5.0f   RD = %5.0f   RDAP = %5.0f   WR = %5.0f   WRAP = %5.0f   REF = %5.0f"\
+                     % [i, $prevCommands[i]["ACT"], $prevCommands[i]["PRE"], $prevCommands[i]["RD"], $prevCommands[i]["RDAP"], $prevCommands[i]["WR"], $prevCommands[i]["WRAP"], $prevCommands[i]["REF"]]
+              end
+            end
+
             #remove dram command from dram command array in the queue
             $dramCommandList.first["CPURequest"]["DRAMCommands"].shift
 
+            if $debug == true
+              puts "Just executed DRAM command removed from dramCommandList"
+            end
+
             #if request has no more dram commands, remove the request, it has been satisfied
             if $dramCommandList.first["CPURequest"]["DRAMCommands"].empty?
+              if $debug == true
+                puts "CPU request has been completed, removing from queue: #{$dramCommandList.first["CPURequest"]}"
+              end
+
               $CPUBuffer.delete_at($CPUBuffer.index($dramCommandList.first["CPURequest"]))
             end
 
             #remove dram command from dram command list
             $dramCommandList.shift
+
+            if $debug == true
+              puts "List of dram commands with expected output times:"
+              for item in $dramCommandList
+                puts "          command = #{item["command"]} row = #{item["row"]} bank = #{item["bank"]} col = #{item["col"]} expectedDRAMTime = #{item["expectedDRAMTime"]}"
+              end
+              puts ""
+
+              puts "Current queue = "
+              for item in $CPUBuffer.each
+                puts "                #{item}"
+              end
+              puts ""
+            end
           end
         end
       end
-
-#=begin
-    # Testing the ouput
-      puts "CpuClock = %d" % $CpuClock
-      puts "DRAMClock = %d" % $DRAMClock
-      puts "CPUBuffer size = %d" % $CPUBuffer.size()
-      puts "Queue = "
-      for item in $CPUBuffer.each
-        puts "       %s" % item
-      end
-      puts "fileRequest = #{$fileRequest}"
-      puts ""
-#=end
+    #not done with simulation unless queue is empty, and no more items left from the input file
     end while (!$CPUBuffer.empty?() or !$fileRequest.empty? or !$file.eof?)
   end
 
@@ -530,144 +581,82 @@ class ParseCpuRequests
       end
 
       #debug print
-#=begin
+=begin
       puts "#{i}"
       for item in $dramCommandList
         puts "command = #{item["command"]} row = #{item["row"]} bank = #{item["bank"]} col = #{item["col"]} expectedDRAMTime = #{item["expectedDRAMTime"]}"
       end
       puts ""
-#=end
+=end
     end
   end
 
-
-  def tryDRAMCommand(dramCommand, bank, row, column)
-    tRC = 50
-    tRAS = 36
-    tRRD = 6
-    tRP = 14
-    tRFC = 172
-    tCWL = 10
-    tCAS = 14
-    tRCD = 14
-    tWR = 16
-    tRTP = 8
-    tCCD = 4
-    tBURST = 4
-    tWTR = 8
-
-    if dramCommand == "ACT"
-      if $prevCommands[bank]["ACT"] < tRC
-        return false
-
-    #possible later elsif for tRFC - Refresh to Activate
-
-    elsif $prevCommands[bank]["PRE"] < tRP
-      return false
-
-      else
-        for interBankAct in $prevCommands.each
-          if interBankAct["ACT"] < tRRD
-            return false
-          end
-        end
-
-        return true
-    end
-
-    elsif (dramCommand == "RD") || (dramCommand == "RDAP")
-      if $prevCommands[bank]["ACT"] < tRCD
-        return false
-
-#      elsif $prevCommands[bank]["RD"] < tCCD
-#        return false
-
-#      elsif $prevCommands[bank]["WR"] < (tCAS + tCCD + 2 - tCWL)
-#        return false
-
-      else
-
-        for intCommand in $prevCommands.each
-          if intCommand["WR"] < (tCAS + tCCD + 2 - tCWL)
-            return false
-
-          elsif intCommand["RD"] < tCCD
-            return false
-          end
-        end
-
-        return true
-      end
-
-    elsif (dramCommand == "WR") || (dramCommand == "WRAP")
-      if $prevCommands[bank]["ACT"] < tRCD
-        return false
-
-#      elsif $prevCommands[bank]["WR"] < tCCD
-#        return false
-
-#      elsif $prevCommands[bank]["RD"] < (tCWL + tBURST + tWTR)
-#        return false
-
-      else
-
-        for intCommand in $prevCommands.each
-          if intCommand["RD"] < tCWL + tBURST + tWTR
-            return false
-
-          elsif intCommand["WR"] < tCCD
-            return false
-          end
-        end
-
-        return true
-      end
-
-    elsif dramCommand == "PRE"
-      if $prevCommands[bank]["ACT"] < tRAS
-        return false
-
-      elsif $prevCommands[bank]["RD"] < tRTP
-        return false
-
-      elsif $prevCommands[bank]["WR"] < (tCWL + tBURST + tWR)
-        return false
-
-      else
-        return true
-      end
-
-    else
-      puts "Timing for DRAM command [%s] executed at CPU clock [%d] not supported" % [dramCommand, $CpuClock]
-      return true
-    end
-  end
 
   def executeDRAMCommand(dramCommand, bank, row, column)
     if dramCommand == "ACT"
-      $outfile.syswrite "%5d %5s %2d %5d\n" % [$CpuClock, dramCommand, bank, row]
+      if $debug == false
+        $outfile.syswrite "%5d %5s %2d %5d\n" % [$CpuClock, dramCommand, bank, row]
+      
+      else
+        $outfile.syswrite "%12d %12d %14s %7d %7d %8d %17s %25d\n" % \
+        [$CpuClock, $DRAMClock, dramCommand, bank, row, column, $dramCommandList.first["CPURequest"]["inst"], $dramCommandList.first["CPURequest"]["cpuTime"]]
+      end
+
       $openPage[bank] = row
 
     elsif dramCommand == "PRE"
-      $outfile.syswrite "%5d %5s %2d\n" % [$CpuClock, dramCommand, bank]
+      if $debug == false
+        $outfile.syswrite "%5d %5s %2d\n" % [$CpuClock, dramCommand, bank]
+
+      else
+        $outfile.syswrite "%12d %12d %14s %7d %7d %8d %17s %25d\n" % \
+        [$CpuClock, $DRAMClock, dramCommand, bank, row, column, $dramCommandList.first["CPURequest"]["inst"], $dramCommandList.first["CPURequest"]["cpuTime"]]
+      end
+
       $openPage[bank] = nil
 
     elsif dramCommand == "RD"
-      $outfile.syswrite "%5d %5s %2d %5d\n" % [$CpuClock, dramCommand, bank, column]
+      if $debug == false
+        $outfile.syswrite "%5d %5s %2d %5d\n" % [$CpuClock, dramCommand, bank, column]
+
+      else
+        $outfile.syswrite "%12d %12d %14s %7d %7d %8d %17s %25d\n" % \
+        [$CpuClock, $DRAMClock, dramCommand, bank, row, column, $dramCommandList.first["CPURequest"]["inst"], $dramCommandList.first["CPURequest"]["cpuTime"]]
+      end
 
     elsif dramCommand == "RDAP"
-      $outfile.syswrite "%5d %5s %2d %5d\n" % [$CpuClock, dramCommand, bank, column]
+      if $debug == false
+        $outfile.syswrite "%5d %5s %2d %5d\n" % [$CpuClock, dramCommand, bank, column]
+      
+      else
+        $outfile.syswrite "%12d %12d %14s %7d %7d %8d %17s %25d\n" % \
+        [$CpuClock, $DRAMClock, dramCommand, bank, row, column, $dramCommandList.first["CPURequest"]["inst"], $dramCommandList.first["CPURequest"]["cpuTime"]]
+      end
+
       $openPage[bank] = nil
 
     elsif dramCommand == "WR"
-      $outfile.syswrite "%5d %5s %2d %5d\n" % [$CpuClock, dramCommand, bank, column]
+      if $debug == false
+        $outfile.syswrite "%5d %5s %2d %5d\n" % [$CpuClock, dramCommand, bank, column]
+
+      else
+        $outfile.syswrite "%12d %12d %14s %7d %7d %8d %17s %25d\n" % \
+        [$CpuClock, $DRAMClock, dramCommand, bank, row, column, $dramCommandList.first["CPURequest"]["inst"], $dramCommandList.first["CPURequest"]["cpuTime"]]
+      end
 
     elsif dramCommand == "WRAP"
-      $outfile.syswrite "%5d %5s %2d %5d\n" % [$CpuClock, dramCommand, bank, column]
+      if $debug == false
+        $outfile.syswrite "%5d %5s %2d %5d\n" % [$CpuClock, dramCommand, bank, column]
+
+      else
+        $outfile.syswrite "%12d %12d %14s %7d %7d %8d %17s %25d\n" % \
+        [$CpuClock, $DRAMClock, dramCommand, bank, row, column, $dramCommandList.first["CPURequest"]["inst"], $dramCommandList.first["CPURequest"]["cpuTime"]]
+      end
+
       $openPage[bank] = nil
 
     elsif dramCommand == "REF"
-      $outfile.syswrite "%5s" % [$CpuClock]
+      $outfile.syswrite "%10d %5s" % [$CpuClock, dramCommand]
       $openPage[bank] = nil
     end
   end
@@ -675,15 +664,29 @@ end
 
 
 #this is like main, calling each function above to carry out all DRAM memory request
-if ARGV.size != 1
-  puts "usage: #{$0} <inputFile.txt>"
+if ARGV.size > 3 || ARGV.size < 1
+  puts "usage: #{$0} <inputFile.txt> <-d>"
+  puts "optional -d for debug"
   exit
 end
 
 simulate = ParseCpuRequests.new
 inputFilename = ARGV[0]
+
+if ARGV[1]
+  $debug = true
+  puts "running in debug mode"
+else
+  $debug = false
+end
+
 outputFilename = inputFilename.split(".")[0] + "Log.txt"
 $file = File.open(inputFilename,"r")
 $outfile = File.new(outputFilename, "w")
+
+if $debug == true
+  $outfile.syswrite "%12s %12s %14s %7s %7s %8s %17s %25s\n" % ["CPU Time", "DRAM Time", "DRAM Command", "Bank", "Row", "Column", "CPU Instruction", "CPU time added to queue"]
+end
+
 simulate.simulateDRAMMemController
 $outfile.close
