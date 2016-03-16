@@ -110,6 +110,7 @@ class ParseCpuRequests
           $CPUBuffer << $fileRequest.shift
           $CPUBuffer.last["DRAMCommands"] = getCommandSequence($CPUBuffer.size-1)     #get dram commands for the newly added item to the queue
           $goFetch = 1
+          recalculate = true
 
         #if the queue is empty (nothing being done), we can skip ahead to when an item from the input file will be added to the queue
         elsif $CPUBuffer.size() == 0
@@ -126,6 +127,7 @@ class ParseCpuRequests
           $CPUBuffer << $fileRequest.shift
           $CPUBuffer.last["DRAMCommands"] = getCommandSequence($CPUBuffer.size-1)     #get dram commands for the newly added item to the queue
           $goFetch = 1
+          recalculate = true
         end
       end
 
@@ -142,23 +144,33 @@ class ParseCpuRequests
 
         #only check for dram commands if there are items in the buffer
         if not $CPUBuffer.empty?
-          getCommandList
-for item in $dramCommandList
-puts "command = #{item["command"]} row = #{item["row"]} bank = #{item["bank"]} col = #{item["col"]} expectedDRAMTime = #{item["expectedDRAMTime"]}"
-end
-puts ""
-#puts $dramCommandList.inspect
-          reorderCommandListFRA
-for item in $dramCommandList
-puts "command = #{item["command"]} row = #{item["row"]} bank = #{item["bank"]} col = #{item["col"]} expectedDRAMTime = #{item["expectedDRAMTime"]}"
-end
-puts ""
-#puts $dramCommandList.inspect
+          #only recalculate if something was added to the queue
+          if recalculate == true
+            getCommandList
 
-          #check if we can do the dram command
-#print "here \n"
-#puts $dramCommandList.inspect
-#print "here\n"
+            #debug print
+#=begin
+            puts "dram command list - open page policy ordering"
+            for item in $dramCommandList
+              puts "command = #{item["command"]} row = #{item["row"]} bank = #{item["bank"]} col = #{item["col"]} expectedDRAMTime = #{item["expectedDRAMTime"]}"
+            end
+            puts ""
+#=end
+
+            reorderCommandListFRA
+            
+            #debug print
+#=begin
+            puts "dram command list - first ready access ordering"
+            for item in $dramCommandList
+              puts "command = #{item["command"]} row = #{item["row"]} bank = #{item["bank"]} col = #{item["col"]} expectedDRAMTime = #{item["expectedDRAMTime"]}"
+            end
+            puts ""
+#=end
+
+            recalculate = false
+          end
+
           if $dramCommandList.first["expectedDRAMTime"] == $DRAMClock
             #output dram command
             #puts "DRAM Command issued: %s   Bank: %d   Row: %d   Column: %d" % [$CPUBuffer[0]["DRAMCommands"].first, $CPUBuffer[0]["bank"], $CPUBuffer[0]["row"], $CPUBuffer[0]["col"]]
@@ -168,17 +180,19 @@ puts ""
             $prevCommands[$dramCommandList.first["bank"]][$dramCommandList.first["command"]] = 0
 
             #remove dram command from dram command array in the queue
-
-
             $dramCommandList.first["CPURequest"]["DRAMCommands"].shift
 
             #if request has no more dram commands, remove the request, it has been satisfied
             if $dramCommandList.first["CPURequest"]["DRAMCommands"].empty?
               $CPUBuffer.delete_at($CPUBuffer.index($dramCommandList.first["CPURequest"]))
             end
+
+            #remove dram command from dram command list
+            $dramCommandList.shift
           end
         end
       end
+
 #=begin
     # Testing the ouput
       puts "CpuClock = %d" % $CpuClock
@@ -462,9 +476,6 @@ puts ""
           additionalTime = getCommandTiming(myPrevCommands, $dramCommandList[i]["command"], $dramCommandList[i]["bank"])
           myDRAMClock += additionalTime
         #have to repeat to see if it got pushed behind any other commands in the dram command list
-
-#puts "in while 1 additionalTime = %d myDRAMClock = %d" % [additionalTime, myDRAMClock]
-#puts "myPrevCommands = #{myPrevCommands}"
         end while additionalTime != 0
 
         #before moving to new position, check if it conflicts with any of the commands ahead of it in the queue
@@ -503,7 +514,6 @@ puts ""
           end
         end
       #keep repeating until no more conflicts with items ahead in the dram command list
-#puts "in while 2"
       end while conflict == true
 
       #no conflicts with the new time to execute, we can move it, find its place in the dram command list
@@ -514,17 +524,19 @@ puts ""
       end
 
       #insert into new position
-
-#puts "j = #{j} i = #{i}"
       if j
         $dramCommandList[i]["expectedDRAMTime"] = myDRAMClock
         $dramCommandList.insert(j, $dramCommandList.delete_at(i))
       end
-puts "#{i}"
-for item in $dramCommandList
-puts "command = #{item["command"]} row = #{item["row"]} bank = #{item["bank"]} col = #{item["col"]} expectedDRAMTime = #{item["expectedDRAMTime"]}"
-end
-puts ""
+
+      #debug print
+#=begin
+      puts "#{i}"
+      for item in $dramCommandList
+        puts "command = #{item["command"]} row = #{item["row"]} bank = #{item["bank"]} col = #{item["col"]} expectedDRAMTime = #{item["expectedDRAMTime"]}"
+      end
+      puts ""
+#=end
     end
   end
 
