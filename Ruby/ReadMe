@@ -15,8 +15,18 @@ http://www.tutorialspoint.com/ruby/ruby_environment.htm
 after setting up the environment in your terminal go to the home dir of the where you copy them type:
 >ruby ParseCpuRequests.rb
 
-to get ruby to output to a text file since there is so much data
->ruby ParseCpuRequests.rb > output.txt
-
 current syntax is 
->ruby ParseCpuRequests.rb testcase0.txt
+>ruby MemControllerFRA.rb testcase0.txt
+
+the output file which will have the dram commands associated with the input file requests will be named
+the same as the input file but with Log appended to the end of the name.
+e.g. input file: [input.txt]
+     output file: [inputLog.txt]
+
+to run in debug mode
+>ruby MemControllerFRA.rb testcase0.txt -d
+
+since debug mode generates lots of output, most likely need to pipe the output to a file
+>ruby MemControllerFRA.rb testcase0.txt -d > output.txt
+
+debug mode will generate a more informational log file, as well as print useful information to the screen
