@@ -263,10 +263,11 @@ class ParseCpuRequests
     commands = Array.new
 
     myOpenPage = Marshal.load(Marshal.dump($openPage))
-    
+   
+    #go through all the items in the queue up to the request we want to calculate the dram commands for and update the current open page
     for i in 0..(requestIndex-1)
       for j in $CPUBuffer[i]["DRAMCommands"].each
-        dramCommand = j["command"]
+        dramCommand = j
 
         if dramCommand == "ACT"
           myOpenPage[$CPUBuffer[i]["bank"]] = $CPUBuffer[i]["row"]
@@ -397,7 +398,7 @@ class ParseCpuRequests
       for interBankCommand in myPrevCommands.each
         #check prior writes to all banks
         if interBankCommand["WR"] < tCCD
-          time2satisfy = tCCD - interBankCommand["RD"]
+          time2satisfy = tCCD - interBankCommand["WR"]
           if time2satisfy > additionalTime
             additionalTime = time2satisfy
           end
