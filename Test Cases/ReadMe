@@ -53,3 +53,7 @@ test6 -Random Commands - Long TIME=4000
 
 test7 -Random Commands
 - Differen col+byte+Row+Bank
+
+testFutureConflict
+- read followed by read to same bank but different row followed by several writes to a different bank all same row
+- make sure the writes dont interfere with the time the second read should be issued
